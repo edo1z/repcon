@@ -2,7 +2,7 @@ use clap::Parser;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
 #[derive(Parser, Debug)]
@@ -32,55 +32,72 @@ struct Args {
     /// Maximum size of each output file in megabytes
     #[clap(short = 's', long = "max-size", default_value_t = 540, value_parser = clap::value_parser!(u64).range(1..100001))]
     max_file_size: u64,
+
+    /// Path to the output directory for the condensed files
+    #[clap(short = 'o', long = "output", value_parser, default_value = "output")]
+    output_directory: String,
 }
 
-/// Recursively calculates the total size of files in a directory, respecting custom ignore rules.
-fn get_dir_size(dir: &str, args: &Args) -> io::Result<u64> {
-    let mut total_size: u64 = 0;
-
-    // Build custom ignore rules
+// Function to collect the list of target files
+fn collect_target_files(dir: &Path, args: &Args) -> io::Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
     let mut override_builder = OverrideBuilder::new(dir);
+
+    // Add ignore patterns from args
     for rule in &args.ignore_patterns {
         override_builder
             .add(format!("!{}", rule).as_str())
-            .expect("Invalid override pattern");
+            .map_err(convert_ignore_error)?;
     }
 
-    // Load custom ignore patterns from a repconignore file if provided
-    if let Some(ignore_file) = &args.repconignore_path {
+    // If a .repconignore file is provided, add its ignore patterns
+    if let Some(ref ignore_file) = args.repconignore_path {
         if Path::new(ignore_file).exists() {
             let ignore_content = fs::read_to_string(ignore_file)?;
             for line in ignore_content.lines() {
                 if !line.trim().is_empty() && !line.starts_with('#') {
                     override_builder
                         .add(format!("!{}", line).as_str())
-                        .expect("Invalid override pattern");
+                        .map_err(convert_ignore_error)?;
                 }
             }
         }
     }
 
-    let overrides = override_builder.build().expect("Could not build overrides");
+    let overrides = override_builder.build().map_err(convert_ignore_error)?;
+    let walker = WalkBuilder::new(dir).overrides(overrides).build();
 
-    // Build the walker with the custom overrides
-    let walker = WalkBuilder::new(dir).overrides(overrides).build(); // `.gitignore` is automatically respected
-
+    // Collect files that are not ignored
     for result in walker {
         if let Ok(entry) = result {
             if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                if let Ok(metadata) = entry.metadata() {
-                    total_size += metadata.len();
-                }
+                files.push(entry.into_path());
             }
         }
     }
+
+    Ok(files)
+}
+
+fn convert_ignore_error(e: ignore::Error) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, e)
+}
+
+// Function to calculate the total size of the files from a list
+fn get_dir_size(files: &[PathBuf]) -> io::Result<u64> {
+    let total_size: u64 = files
+        .iter()
+        .filter_map(|f| fs::metadata(f).ok())
+        .map(|metadata| metadata.len())
+        .sum();
 
     Ok(total_size)
 }
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
-    let total_size = get_dir_size(&args.path_to_repo, &args)?;
+    let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+    let total_size = get_dir_size(&files)?;
     println!("Total size: {}", total_size);
 
     // Convert max file size from megabytes to bytes
@@ -165,6 +182,7 @@ mod tests {
                 .map(|_| repconignore_path.to_str().unwrap().to_string()),
             max_files: 20,
             max_file_size: 540,
+            output_directory: "output".to_string(),
         };
 
         Ok((dir, args, file_info))
@@ -173,7 +191,8 @@ mod tests {
     #[test]
     fn test_no_ignore() -> io::Result<()> {
         let (dir, args, file_info) = setup_test_environment(vec![], None)?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, file_info.total_size());
         dir.close()?;
         Ok(())
@@ -182,7 +201,8 @@ mod tests {
     #[test]
     fn test_ignore_single_file() -> io::Result<()> {
         let (dir, args, file_info) = setup_test_environment(vec!["test_file2*".to_string()], None)?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, file_info.file1_size());
         dir.close()?;
         Ok(())
@@ -191,7 +211,8 @@ mod tests {
     #[test]
     fn test_ignore_nonexistent_pattern() -> io::Result<()> {
         let (dir, args, file_info) = setup_test_environment(vec!["hoge".to_string()], None)?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, file_info.total_size());
         dir.close()?;
         Ok(())
@@ -201,7 +222,8 @@ mod tests {
     fn test_ignore_multiple_patterns() -> io::Result<()> {
         let ignore_patterns = vec!["*_file.*".to_string(), "*_file2.*".to_string()];
         let (dir, args, _file_info) = setup_test_environment(ignore_patterns, None)?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -211,7 +233,8 @@ mod tests {
     fn test_repconignore_single_pattern() -> io::Result<()> {
         let repconignore_content = "test_file2*";
         let (dir, args, file_info) = setup_test_environment(vec![], Some(repconignore_content))?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, file_info.file1_size());
         dir.close()?;
         Ok(())
@@ -221,7 +244,8 @@ mod tests {
     fn test_repconignore_all_pattern() -> io::Result<()> {
         let repconignore_content = "*";
         let (dir, args, _file_info) = setup_test_environment(vec![], Some(repconignore_content))?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -231,7 +255,8 @@ mod tests {
     fn test_repconignore_irrelevant_pattern() -> io::Result<()> {
         let repconignore_content = "hoge";
         let (dir, args, file_info) = setup_test_environment(vec![], Some(repconignore_content))?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, file_info.file1_size() + file_info.file2_size());
         dir.close()?;
         Ok(())
@@ -241,7 +266,8 @@ mod tests {
     fn test_repconignore_multiple_patterns() -> io::Result<()> {
         let repconignore_content = "*_file.*\n*_file2.*";
         let (dir, args, _file_info) = setup_test_environment(vec![], Some(repconignore_content))?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -253,7 +279,8 @@ mod tests {
         let repconignore_content = "test_file2.*";
         let (dir, args, _file_info) =
             setup_test_environment(ignore_patterns, Some(repconignore_content))?;
-        let size = get_dir_size(&args.path_to_repo, &args)?;
+        let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
+        let size = get_dir_size(&files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
