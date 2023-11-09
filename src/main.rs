@@ -1,7 +1,7 @@
 use clap::Parser;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
-use std::fs;
-use std::io;
+use std::fs::{self, File};
+use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 /// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
@@ -94,11 +94,127 @@ fn get_dir_size(files: &[PathBuf]) -> io::Result<u64> {
     Ok(total_size)
 }
 
+fn create_page_header(repository_name: &str, file_path: &str, page_number: u64) -> String {
+    format!(
+        "# repcon_repository_name: {}\n# repcon_file_name: {}\n# repcon_page_number: {}\n// START OF CODE BLOCK: {}\n",
+        repository_name,
+        file_path,
+        page_number,
+        file_path
+    )
+}
+
+fn create_page_footer(file_path: &str) -> String {
+    format!("// END OF CODE BLOCK: {}\n", file_path)
+}
+
+fn check_size_limits(total_size: u64, total_allowed_size: u64) -> io::Result<()> {
+    if total_size > total_allowed_size {
+        eprintln!(
+            "Error: The total size of the files ({}) exceeds the allowed limit of {} bytes.",
+            total_size, total_allowed_size
+        );
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+// Function to create a new file and write the initial page header
+fn create_new_file(
+    output_directory: &Path,
+    file_counter: u64,
+    repository_name: &str,
+) -> io::Result<File> {
+    let file_path = output_directory.join(format!("{}_{}.txt", repository_name, file_counter));
+    let file = File::create(&file_path)?;
+    Ok(file)
+}
+
+fn split_files_into_chunks(
+    files: &[PathBuf],
+    output_directory: &Path,
+    max_file_size: u64,
+    repository_name: &str,
+) -> io::Result<()> {
+    let mut file_counter: u64 = 1;
+    let mut current_file_size: u64 = 0;
+    let mut current_file_name = "";
+    let mut page_number: u64;
+    let mut output_file = create_new_file(output_directory, file_counter, repository_name)?;
+    let mut page_header: String;
+    let mut page_header_size: u64;
+    let page_footer = create_page_footer(current_file_name);
+    let page_footer_size = page_footer.as_bytes().len() as u64;
+
+    for file_path in files {
+        current_file_name = file_path.to_str().unwrap(); // Safely convert PathBuf to &str
+        page_number = 1;
+        page_header = create_page_header(repository_name, current_file_name, page_number);
+        page_header_size = page_header.as_bytes().len() as u64 + 1; // +1 for the newline character
+
+        if page_header_size + page_footer_size > max_file_size {
+            eprintln!(
+                "Error: The maximum file size ({}) is too small to contain the page header and footer.",
+                max_file_size
+            );
+            std::process::exit(1);
+        }
+
+        if current_file_size + page_header_size > max_file_size {
+            // Finish the current file and create a new one
+            file_counter += 1;
+            current_file_size = 0;
+            output_file = create_new_file(output_directory, file_counter, repository_name)?;
+            continue;
+        } else {
+            writeln!(output_file, "{}", page_header)?;
+            current_file_size += page_header_size;
+        }
+
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        for line in reader.lines() {
+            let line = line?;
+            let line_size = line.as_bytes().len() as u64 + 1; // +1 for the newline character
+
+            // Check if the current line can be added to the current file
+            if current_file_size + line_size + page_footer_size > max_file_size {
+                // Write the footer before closing the current file
+                write!(output_file, "{}", create_page_footer(current_file_name))?;
+
+                // Finish the current file and create a new one
+                file_counter += 1;
+                current_file_size = 0;
+                output_file = create_new_file(output_directory, file_counter, repository_name)?;
+
+                // Write the header to the new file
+                page_number += 1;
+                page_header = create_page_header(repository_name, current_file_name, page_number);
+                page_header_size = page_header.as_bytes().len() as u64 + 1; // +1 for the newline character
+                if page_header_size + page_footer_size > max_file_size {
+                    eprintln!(
+                        "Error: The maximum file size ({}) is too small to contain the page header and footer.",
+                        max_file_size
+                    );
+                    std::process::exit(1);
+                }
+                writeln!(output_file, "{}", page_header)?;
+                current_file_size += page_header_size;
+            }
+
+            writeln!(output_file, "{}", line)?;
+            current_file_size += line_size;
+        }
+        // Don't forget to add a footer when you finish writing a file
+        write!(output_file, "{}", create_page_footer(current_file_name))?;
+    }
+    Ok(())
+}
+
 fn main() -> io::Result<()> {
     let args = Args::parse();
     let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
     let total_size = get_dir_size(&files)?;
-    println!("Total size: {}", total_size);
 
     // Convert max file size from megabytes to bytes
     let max_file_size_bytes = (args.max_file_size as u64) * 1024 * 1024;
@@ -106,17 +222,23 @@ fn main() -> io::Result<()> {
     // Calculate the total allowed size based on max files and max file size
     let total_allowed_size = max_file_size_bytes * (args.max_files as u64);
 
+    println!("Total size: {}", total_size);
     println!("Maximum file size: {} bytes", max_file_size_bytes);
     println!("Total allowed size: {} bytes", total_allowed_size);
 
     // If total size exceeds the allowed size, throw an error
-    if total_size > total_allowed_size {
-        eprintln!(
-            "Error: The total size of the files ({}) exceeds the allowed limit of {} bytes.",
-            total_size, total_allowed_size
-        );
-        std::process::exit(1); // Exit with error code
-    }
+    check_size_limits(total_size, total_allowed_size)?;
+
+    // Create the output directory if it doesn't exist
+    fs::create_dir_all(&args.output_directory)?;
+
+    // Split the files into chunks
+    split_files_into_chunks(
+        &files,
+        Path::new(&args.output_directory),
+        max_file_size_bytes,
+        "repo_hoge",
+    )?;
 
     Ok(())
 }

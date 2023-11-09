@@ -35,6 +35,7 @@ The generated text documents will have sections for each file, formatted like th
 ```
 # repcon_repository_name: xxxxx
 # repcon_file_name: xxxxx
+# repcon_page_number: 1
 // START OF CODE BLOCK: xxxxx
 fn main() {
     // Example code here
