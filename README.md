@@ -8,6 +8,15 @@
 - **Custom Ignore Rules**: Users can specify additional patterns to ignore files or directories, granting more control over the output.
 - **Markdown Formatting**: Each file's content is enclosed within markdown code blocks, accompanied by a header indicating the file's path and repository name for easy navigation and readability.
 
+## Installation
+
+To install `repcon`, use the following command:
+
+```bash
+cargo install repcon
+```
+Ensure you have Rust and Cargo installed on your system. For more information on installing Rust, visit [the official Rust installation guide](https://www.rust-lang.org/tools/install).
+
 ## Usage
 
 Upon installation via `cargo install repcon`, navigate to your repository's root directory and run the following command:
@@ -43,15 +52,20 @@ fn add(a: i32, b: i32) -> i32 {
 
 Along with the code, `repcon` will generate a directory structure to give an overview of the repository layout.
 
-## Installation
+## Custom Ignore Rules
 
-To install `repcon`, use the following command:
+By creating a `.repconignore` file in your repository's root directory, you can define additional ignore patterns specific to `repcon`. The syntax is similar to `.gitignore`, but these patterns are used exclusively by `repcon` to filter out files or directories when generating markdown documents.
 
-```bash
-cargo install repcon
+Here's an example `.repconignore` file:
+
 ```
+# This is a comment
+# Ignore all .log files
+*.log
 
-Ensure you have Rust and Cargo installed on your system. For more information on installing Rust, visit [the official Rust installation guide](https://www.rust-lang.org/tools/install).
+# Ignore specific directory
+node_modules/
+```
 
 ## Error Handling
 
