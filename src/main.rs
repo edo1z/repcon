@@ -24,6 +24,14 @@ struct Args {
         default_value = ".repconignore"
     )]
     repconignore_path: Option<String>,
+
+    /// Maximum number of files to output
+    #[clap(short = 'n', long = "max-files", default_value_t = 20, value_parser = clap::value_parser!(u64).range(1..1001))]
+    max_files: u64,
+
+    /// Maximum size of each output file in megabytes
+    #[clap(short = 's', long = "max-size", default_value_t = 540, value_parser = clap::value_parser!(u64).range(1..100001))]
+    max_file_size: u64,
 }
 
 /// Recursively calculates the total size of files in a directory, respecting custom ignore rules.
@@ -74,6 +82,24 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
     let total_size = get_dir_size(&args.path_to_repo, &args)?;
     println!("Total size: {}", total_size);
+
+    // Convert max file size from megabytes to bytes
+    let max_file_size_bytes = (args.max_file_size as u64) * 1024 * 1024;
+
+    // Calculate the total allowed size based on max files and max file size
+    let total_allowed_size = max_file_size_bytes * (args.max_files as u64);
+
+    println!("Maximum file size: {} bytes", max_file_size_bytes);
+    println!("Total allowed size: {} bytes", total_allowed_size);
+
+    // If total size exceeds the allowed size, throw an error
+    if total_size > total_allowed_size {
+        eprintln!(
+            "Error: The total size of the files ({}) exceeds the allowed limit of {} bytes.",
+            total_size, total_allowed_size
+        );
+        std::process::exit(1); // Exit with error code
+    }
 
     Ok(())
 }
@@ -137,6 +163,8 @@ mod tests {
             ignore_patterns,
             repconignore_path: repconignore_content
                 .map(|_| repconignore_path.to_str().unwrap().to_string()),
+            max_files: 20,
+            max_file_size: 540,
         };
 
         Ok((dir, args, file_info))
