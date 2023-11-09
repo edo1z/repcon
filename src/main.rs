@@ -2,6 +2,19 @@ use clap::Parser;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::io;
 
+/// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Path to the repository's root directory
+    #[clap(value_parser)]
+    path_to_repo: String,
+
+    /// Custom ignore patterns
+    #[clap(short = 'i', long = "ignore", value_parser)]
+    ignore_patterns: Vec<String>,
+}
+
 /// Recursively calculates the total size of files in a directory, respecting custom ignore rules.
 fn get_dir_size(dir: &str, ignore_rules: &[String]) -> io::Result<u64> {
     let mut total_size: u64 = 0;
@@ -39,15 +52,22 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-/// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-struct Args {
-    /// Path to the repository's root directory
-    #[clap(value_parser)]
-    path_to_repo: String,
 
-    /// Custom ignore patterns
-    #[clap(short = 'i', long = "ignore", value_parser)]
-    ignore_patterns: Vec<String>,
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+    use std::fs::File;
+    use std::io::Write;
+
+    #[test]
+    fn test_get_dir_size() -> io::Result<()> {
+        let dir = tempdir()?;
+        let file_path = dir.path().join("test_file.txt");
+        let mut file = File::create(&file_path)?;
+        writeln!(file, "Hello World!")?;
+        let size = get_dir_size(dir.path().to_str().unwrap(), &[])?;
+        assert_eq!(size, 13);
+        dir.close()
+    }
 }
