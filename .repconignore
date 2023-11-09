@@ -1,0 +1,10 @@
+Cargo.lock
+node_modules
+images/*
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.exe
+*.zip
+*.pdf
