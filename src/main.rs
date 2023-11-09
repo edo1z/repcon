@@ -1,11 +1,22 @@
 use clap::Parser;
-use ignore::WalkBuilder;
+use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::io;
 
-/// Recursively calculates the total size of all files in a directory.
-fn get_dir_size(dir: &str) -> io::Result<u64> {
+/// Recursively calculates the total size of files in a directory, respecting custom ignore rules.
+fn get_dir_size(dir: &str, ignore_rules: &[String]) -> io::Result<u64> {
     let mut total_size: u64 = 0;
-    let walker = WalkBuilder::new(dir).build(); // `.gitignore` is automatically respected
+
+    // Build custom ignore rules
+    let mut override_builder = OverrideBuilder::new(dir);
+    for rule in ignore_rules {
+        override_builder
+            .add(format!("!{}", rule).as_str())
+            .expect("Invalid override pattern");
+    }
+    let overrides = override_builder.build().expect("Could not build overrides");
+
+    // Build the walker with the custom overrides
+    let walker = WalkBuilder::new(dir).overrides(overrides).build(); // `.gitignore` is automatically respected
 
     for result in walker {
         if let Ok(entry) = result {
@@ -20,20 +31,23 @@ fn get_dir_size(dir: &str) -> io::Result<u64> {
     Ok(total_size)
 }
 
-/// Repo Condenser - A CLI tool to efficiently condense repository files
+fn main() -> io::Result<()> {
+    let args = Args::parse();
+    let total_size = get_dir_size(&args.path_to_repo, &args.ignore_patterns)?;
+    println!("Total size: {}", total_size);
+
+    Ok(())
+}
+
+/// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// Path to the repository's root directory
     #[clap(value_parser)]
     path_to_repo: String,
-}
 
-fn main() -> io::Result<()> {
-    let args = Args::parse();
-
-    let total_size = get_dir_size(&args.path_to_repo)?;
-    println!("Total size of non-ignored files: {} bytes", total_size);
-
-    Ok(())
+    /// Custom ignore patterns
+    #[clap(short = 'i', long = "ignore", value_parser)]
+    ignore_patterns: Vec<String>,
 }
