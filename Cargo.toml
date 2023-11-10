@@ -11,6 +11,8 @@ clap = { version = "4.4.7", features = ["derive"] }
 ignore = "0.4"
 tempfile = "3"
 dotenv = "0.15.0"
+reqwest = { version = "0.11", features = ["multipart"] }
+tokio = { version = "1", features = ["full"] }
 
 [[bin]]
 name = "repcon"
