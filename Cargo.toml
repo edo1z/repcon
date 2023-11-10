@@ -1,12 +1,17 @@
 [package]
-name = "repo_condenser"
+name = "repcon"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
 ignore = "0.4"
 tempfile = "3"
 dotenv = "0.15.0"
+
+[[bin]]
+name = "repcon"
+path = "src/main.rs"
