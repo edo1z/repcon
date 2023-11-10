@@ -8,10 +8,10 @@ fn create_new_file(
     output_directory: &Path,
     file_counter: u64,
     repository_name: &str,
-) -> io::Result<File> {
+) -> io::Result<(File, PathBuf)> {
     let file_path = output_directory.join(format!("{}_{}.txt", repository_name, file_counter));
     let file = File::create(&file_path)?;
-    Ok(file)
+    Ok((file, file_path))
 }
 
 pub fn split_files_into_chunks(
@@ -19,12 +19,15 @@ pub fn split_files_into_chunks(
     output_directory: &Path,
     max_file_size: u64,
     repository_name: &str,
-) -> io::Result<()> {
+) -> io::Result<Vec<PathBuf>> {
+    let mut generated_files = Vec::new();
     let mut file_counter: u64 = 1;
     let mut current_file_size: u64 = 0;
     let mut current_file_name = "";
     let mut page_number: u64;
-    let mut output_file = create_new_file(output_directory, file_counter, repository_name)?;
+    let (mut output_file, mut output_file_path) =
+        create_new_file(output_directory, file_counter, repository_name)?;
+    generated_files.push(output_file_path);
     let mut page_header: String;
     let mut page_header_size: u64;
     let page_footer = create_page_footer(current_file_name);
@@ -48,7 +51,9 @@ pub fn split_files_into_chunks(
             // Finish the current file and create a new one
             file_counter += 1;
             current_file_size = 0;
-            output_file = create_new_file(output_directory, file_counter, repository_name)?;
+            (output_file, output_file_path) =
+                create_new_file(output_directory, file_counter, repository_name)?;
+            generated_files.push(output_file_path);
             continue;
         } else {
             writeln!(output_file, "{}", page_header)?;
@@ -69,7 +74,9 @@ pub fn split_files_into_chunks(
                 // Finish the current file and create a new one
                 file_counter += 1;
                 current_file_size = 0;
-                output_file = create_new_file(output_directory, file_counter, repository_name)?;
+                (output_file, output_file_path) =
+                    create_new_file(output_directory, file_counter, repository_name)?;
+                generated_files.push(output_file_path);
 
                 // Write the header to the new file
                 page_number += 1;
@@ -92,5 +99,5 @@ pub fn split_files_into_chunks(
         // Don't forget to add a footer when you finish writing a file
         write!(output_file, "{}", create_page_footer(current_file_name))?;
     }
-    Ok(())
+    Ok(generated_files)
 }

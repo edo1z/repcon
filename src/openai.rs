@@ -1,31 +1,7 @@
 use reqwest::{self, multipart};
-use std::env;
-use std::io;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-
-pub fn upload_to_openai(upload: &Option<Option<String>>) -> io::Result<()> {
-    match upload {
-        Some(Some(api_key)) => {
-            println!("Uploading with provided API key.");
-            println!("{}", api_key)
-        }
-        Some(None) => match env::var("OPENAI_API_KEY") {
-            Ok(env_api_key) => {
-                println!("Uploading with API key from environment variable.");
-                println!("{}", env_api_key)
-            }
-            Err(_) => {
-                println!("API key not specified and not found in environment. Skipping upload.");
-            }
-        },
-        None => {
-            println!("No upload option provided. Skipping upload.");
-        }
-    }
-    Ok(())
-}
 
 pub async fn upload_file_to_openai(
     api_key: &str,

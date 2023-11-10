@@ -2,11 +2,13 @@ use clap::Parser;
 use dotenv::dotenv;
 use repcon::{
     check_size_limits, collect_target_files, get_dir_size, split_files_into_chunks,
-    upload_to_openai,
+    upload_file_to_openai,
 };
+use std::env;
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use tokio;
 
 /// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
 #[derive(Parser, Debug)]
@@ -46,7 +48,39 @@ struct Args {
     upload: Option<Option<String>>,
 }
 
-fn main() -> io::Result<()> {
+pub async fn upload_files_to_openai(
+    upload_option: &Option<Option<String>>,
+    files: Vec<PathBuf>,
+) -> io::Result<()> {
+    let api_key = match upload_option {
+        Some(Some(key)) => key.clone(),
+        Some(None) => env::var("OPENAI_API_KEY").map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "API key not specified and not found in environment.",
+            )
+        })?,
+        None => {
+            println!("No upload option provided. Skipping upload.");
+            return Ok(());
+        }
+    };
+
+    for file_path in files {
+        match upload_file_to_openai(&api_key, file_path.to_str().unwrap(), "purpose_here").await {
+            Ok(_) => (),
+            Err(e) => {
+                let error_message = e.to_string();
+                return Err(io::Error::new(io::ErrorKind::Other, error_message));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> io::Result<()> {
     dotenv().ok();
     let args = Args::parse();
     let files = collect_target_files(
@@ -73,7 +107,7 @@ fn main() -> io::Result<()> {
     fs::create_dir_all(&args.output_directory)?;
 
     // Split the files into chunks
-    split_files_into_chunks(
+    let generated_files = split_files_into_chunks(
         &files,
         Path::new(&args.output_directory),
         max_file_size_bytes,
@@ -81,7 +115,7 @@ fn main() -> io::Result<()> {
     )?;
 
     // Upload to OpenAI
-    upload_to_openai(&args.upload)?;
+    upload_files_to_openai(&args.upload, generated_files).await?;
 
     Ok(())
 }
