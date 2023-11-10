@@ -1,5 +1,7 @@
 use clap::Parser;
+use dotenv::dotenv;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
+use std::env;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -36,6 +38,10 @@ struct Args {
     /// Path to the output directory for the condensed files
     #[clap(short = 'o', long = "output", value_parser, default_value = "output")]
     output_directory: String,
+
+    /// OpenAI API key for uploading the condensed files
+    #[clap(short = 'u', long = "upload", value_parser)]
+    upload: Option<Option<String>>,
 }
 
 // Function to collect the list of target files
@@ -211,7 +217,30 @@ fn split_files_into_chunks(
     Ok(())
 }
 
+fn upload_to_openai(upload: &Option<Option<String>>) -> io::Result<()> {
+    match upload {
+        Some(Some(api_key)) => {
+            println!("Uploading with provided API key.");
+            println!("{}", api_key)
+        }
+        Some(None) => match env::var("OPENAI_API_KEY") {
+            Ok(env_api_key) => {
+                println!("Uploading with API key from environment variable.");
+                println!("{}", env_api_key)
+            }
+            Err(_) => {
+                println!("API key not specified and not found in environment. Skipping upload.");
+            }
+        },
+        None => {
+            println!("No upload option provided. Skipping upload.");
+        }
+    }
+    Ok(())
+}
+
 fn main() -> io::Result<()> {
+    dotenv().ok();
     let args = Args::parse();
     let files = collect_target_files(Path::new(&args.path_to_repo), &args)?;
     let total_size = get_dir_size(&files)?;
@@ -239,6 +268,9 @@ fn main() -> io::Result<()> {
         max_file_size_bytes,
         "repo_hoge",
     )?;
+
+    // Upload to OpenAI
+    upload_to_openai(&args.upload)?;
 
     Ok(())
 }
@@ -305,6 +337,7 @@ mod tests {
             max_files: 20,
             max_file_size: 540,
             output_directory: "output".to_string(),
+            upload: None,
         };
 
         Ok((dir, args, file_info))
