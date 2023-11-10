@@ -67,7 +67,7 @@ pub async fn upload_files_to_openai(
     };
 
     for file_path in files {
-        match upload_file_to_openai(&api_key, file_path.to_str().unwrap(), "purpose_here").await {
+        match upload_file_to_openai(&api_key, file_path.to_str().unwrap(), "assistants").await {
             Ok(_) => (),
             Err(e) => {
                 let error_message = e.to_string();
