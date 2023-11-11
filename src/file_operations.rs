@@ -3,6 +3,13 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+fn to_relative_path(root: &Path, file_path: &Path) -> PathBuf {
+    file_path
+        .strip_prefix(root)
+        .unwrap_or(file_path)
+        .to_path_buf()
+}
+
 // Function to collect the list of target files
 pub fn collect_target_files(
     dir: &Path,
@@ -40,7 +47,8 @@ pub fn collect_target_files(
     for result in walker {
         if let Ok(entry) = result {
             if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                files.push(entry.into_path());
+                let relative_path = to_relative_path(dir, entry.path());
+                files.push(relative_path);
             }
         }
     }
@@ -53,10 +61,10 @@ fn convert_ignore_error(e: ignore::Error) -> io::Error {
 }
 
 // Function to calculate the total size of the files from a list
-pub fn get_dir_size(files: &[PathBuf]) -> io::Result<u64> {
+pub fn get_dir_size(root_path: &Path, files: &[PathBuf]) -> io::Result<u64> {
     let total_size: u64 = files
         .iter()
-        .filter_map(|f| fs::metadata(f).ok())
+        .filter_map(|f| fs::metadata(root_path.join(f)).ok())
         .map(|metadata| metadata.len())
         .sum();
 
@@ -148,7 +156,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, file_info) =
             setup_test_environment(vec![], None)?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, file_info.total_size());
         dir.close()?;
         Ok(())
@@ -159,7 +167,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, file_info) =
             setup_test_environment(vec!["test_file2*".to_string()], None)?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, file_info.file1_size());
         dir.close()?;
         Ok(())
@@ -170,7 +178,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, file_info) =
             setup_test_environment(vec!["hoge".to_string()], None)?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, file_info.total_size());
         dir.close()?;
         Ok(())
@@ -182,7 +190,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, _file_info) =
             setup_test_environment(ignore_patterns, None)?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -194,7 +202,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, file_info) =
             setup_test_environment(vec![], Some(repconignore_content))?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, file_info.file1_size());
         dir.close()?;
         Ok(())
@@ -206,7 +214,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, _file_info) =
             setup_test_environment(vec![], Some(repconignore_content))?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -218,7 +226,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, file_info) =
             setup_test_environment(vec![], Some(repconignore_content))?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, file_info.file1_size() + file_info.file2_size());
         dir.close()?;
         Ok(())
@@ -230,7 +238,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, _file_info) =
             setup_test_environment(vec![], Some(repconignore_content))?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
@@ -243,7 +251,7 @@ mod tests {
         let (dir, path_to_repo, ignore_patterns, ignore_path, _file_info) =
             setup_test_environment(ignore_patterns, Some(repconignore_content))?;
         let files = collect_target_files(&path_to_repo, &ignore_patterns, ignore_path.as_ref())?;
-        let size = get_dir_size(&files)?;
+        let size = get_dir_size(&path_to_repo, &files)?;
         assert_eq!(size, 0);
         dir.close()?;
         Ok(())
