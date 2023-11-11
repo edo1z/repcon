@@ -1,8 +1,8 @@
 use clap::Parser;
 use dotenv::dotenv;
 use repcon::{
-    check_size_limits, collect_target_files, get_dir_size, split_files_into_chunks,
-    upload_file_to_openai,
+    check_size_limits, collect_target_files, format_file_size, get_dir_size,
+    split_files_into_chunks, upload_file_to_openai,
 };
 use std::env;
 use std::fs;
@@ -106,9 +106,15 @@ async fn main() -> io::Result<()> {
     // Calculate the total allowed size based on max files and max file size
     let total_allowed_size = max_file_size_bytes * (args.max_files as u64);
 
-    println!("Total size: {}", total_size);
-    println!("Maximum file size: {} bytes", max_file_size_bytes);
-    println!("Total allowed size: {} bytes", total_allowed_size);
+    println!("Total size: {}", format_file_size(total_size));
+    println!(
+        "Maximum file size: {} bytes",
+        format_file_size(max_file_size_bytes)
+    );
+    println!(
+        "Total allowed size: {} bytes",
+        format_file_size(total_allowed_size)
+    );
 
     // If total size exceeds the allowed size, throw an error
     check_size_limits(total_size, total_allowed_size)?;
