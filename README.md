@@ -59,13 +59,6 @@ Example of a `.repconignore` file:
 node_modules/
 ```
 
-## Error Handling
-
-If `repcon` encounters an issue, it will provide an error message detailing the problem. Common issues may include:
-
-- `Permission Denied`: Check you have read and write permissions for the directory where `repcon` is run.
-- `File Not Found`: Verify the path and ignore patterns to ensure they are correctly specified and accessible.
-
 ## Contributing
 
 Feel free to dive in! Open an issue or submit PRs. For major changes, please open an issue first to discuss what you would like to change.
