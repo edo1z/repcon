@@ -2,6 +2,13 @@
 name = "repcon"
 version = "0.1.0"
 edition = "2021"
+description = "A Rust tool for condensing repository files for OpenAI's Assistants API usage"
+keywords = ["openai", "retrieval", "compression", "cli"]
+license = "MIT"
+repository = "https://github.com/edo1z/repcon"
+authors = ["edo1z <endo.yuta@logicky.com>"]
+homepage = ""
+categories = ["command-line-utilities"]
 
 [lib]
 path = "src/lib.rs"

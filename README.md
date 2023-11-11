@@ -2,6 +2,12 @@
 
 `repcon` is a Rust-based CLI tool that efficiently condenses the entire set of files in a repository into a maximum of 20 text documents. This tool is particularly useful for developers who want to bundle their repository's files for simplified sharing and review, especially when dealing with platforms that limit the number of uploadable files.
 
+## Background
+
+`repcon` was developed to facilitate the creation of uploadable files for OpenAI's Assistants API Retrieval feature. With the API's limitation of handling a maximum of 20 files, `repcon` aims to efficiently condense larger repositories into a more manageable format. This tool is particularly useful for complex systems where the number of files can exceed the API's limit, thus simplifying the process of bundling repository files for use with OpenAI's API.
+
+Please note that `repcon` is an independent project and is not officially associated with OpenAI.
+
 ## Features
 
 - **Selective Inclusion**: Automatically excludes files listed in `.gitignore`, ensuring only the necessary files are included.
