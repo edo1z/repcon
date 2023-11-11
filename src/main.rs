@@ -32,7 +32,7 @@ struct Args {
     repconignore_path: Option<String>,
 
     /// Maximum number of files to output
-    #[clap(short = 'n', long = "max-files", default_value_t = 20, value_parser = clap::value_parser!(u64).range(1..1001))]
+    #[clap(short = 'f', long = "max-files", default_value_t = 20, value_parser = clap::value_parser!(u64).range(1..1001))]
     max_files: u64,
 
     /// Maximum size of each output file in megabytes
@@ -42,6 +42,15 @@ struct Args {
     /// Path to the output directory for the condensed files
     #[clap(short = 'o', long = "output", value_parser, default_value = "output")]
     output_directory: String,
+
+    /// Base name for the output files
+    #[clap(
+        short = 'n',
+        long = "output-name",
+        value_parser,
+        default_value = "output"
+    )]
+    output_name: String,
 
     /// OpenAI API key for uploading the condensed files
     #[clap(short = 'u', long = "upload", value_parser)]
@@ -111,7 +120,7 @@ async fn main() -> io::Result<()> {
         &files,
         Path::new(&args.output_directory),
         max_file_size_bytes,
-        "repo_hoge",
+        &args.output_name,
     )?;
 
     // Upload to OpenAI

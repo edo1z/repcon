@@ -6,7 +6,7 @@
 
 - **Selective Inclusion**: Automatically excludes files listed in `.gitignore`, ensuring only the necessary files are included.
 - **Custom Ignore Rules**: Users can specify additional patterns to ignore files or directories, providing more control over the included content.
-- **Text Document Formatting**: Each file's content is enclosed within a clear start and end comment, accompanied by a header indicating the file's path and repository name for easy identification.
+- **Text Document Formatting**: Each file's content is enclosed within a clear start and end comment, accompanied by a header indicating the file's path for easy identification.
 
 ## Installation
 
@@ -33,7 +33,6 @@ This will process all files within the repository, excluding any matches found i
 The generated text documents will have sections for each file, formatted like this:
 
 ```
-# repcon_repository_name: xxxxx
 # repcon_file_name: xxxxx
 # repcon_page_number: 1
 // START OF CODE BLOCK: xxxxx
@@ -43,9 +42,7 @@ fn main() {
 // END OF CODE BLOCK: xxxxx
 ```
 
-Along with the code blocks, `repcon` will generate a directory structure to give an overview of the repository layout, helping users understand the organization of the files within the repository.
-
-Each document's filename will follow the format `repository_name_NO.txt`, where `NO` is a sequence number.
+Files will be named according to the format specified by the user, or default to `{output_file_name}_{file_no}.txt`, where `file_no` is a sequence number.
 
 ## Custom Ignore Rules
 

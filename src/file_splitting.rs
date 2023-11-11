@@ -7,9 +7,9 @@ use std::path::{Path, PathBuf};
 fn create_new_file(
     output_directory: &Path,
     file_counter: u64,
-    repository_name: &str,
+    output_name: &str,
 ) -> io::Result<(File, PathBuf)> {
-    let file_path = output_directory.join(format!("{}_{}.txt", repository_name, file_counter));
+    let file_path = output_directory.join(format!("{}_{}.txt", output_name, file_counter));
     let file = File::create(&file_path)?;
     Ok((file, file_path))
 }
@@ -18,7 +18,7 @@ pub fn split_files_into_chunks(
     files: &[PathBuf],
     output_directory: &Path,
     max_file_size: u64,
-    repository_name: &str,
+    output_name: &str,
 ) -> io::Result<Vec<PathBuf>> {
     let mut generated_files = Vec::new();
     let mut file_counter: u64 = 1;
@@ -26,7 +26,7 @@ pub fn split_files_into_chunks(
     let mut current_file_name = "";
     let mut page_number: u64;
     let (mut output_file, mut output_file_path) =
-        create_new_file(output_directory, file_counter, repository_name)?;
+        create_new_file(output_directory, file_counter, output_name)?;
     generated_files.push(output_file_path);
     let mut page_header: String;
     let mut page_header_size: u64;
@@ -36,7 +36,7 @@ pub fn split_files_into_chunks(
     for file_path in files {
         current_file_name = file_path.to_str().unwrap(); // Safely convert PathBuf to &str
         page_number = 1;
-        page_header = create_page_header(repository_name, current_file_name, page_number);
+        page_header = create_page_header(current_file_name, page_number);
         page_header_size = page_header.as_bytes().len() as u64 + 1; // +1 for the newline character
 
         if page_header_size + page_footer_size > max_file_size {
@@ -52,7 +52,7 @@ pub fn split_files_into_chunks(
             file_counter += 1;
             current_file_size = 0;
             (output_file, output_file_path) =
-                create_new_file(output_directory, file_counter, repository_name)?;
+                create_new_file(output_directory, file_counter, output_name)?;
             generated_files.push(output_file_path);
             continue;
         } else {
@@ -75,12 +75,12 @@ pub fn split_files_into_chunks(
                 file_counter += 1;
                 current_file_size = 0;
                 (output_file, output_file_path) =
-                    create_new_file(output_directory, file_counter, repository_name)?;
+                    create_new_file(output_directory, file_counter, output_name)?;
                 generated_files.push(output_file_path);
 
                 // Write the header to the new file
                 page_number += 1;
-                page_header = create_page_header(repository_name, current_file_name, page_number);
+                page_header = create_page_header(current_file_name, page_number);
                 page_header_size = page_header.as_bytes().len() as u64 + 1; // +1 for the newline character
                 if page_header_size + page_footer_size > max_file_size {
                     eprintln!(
