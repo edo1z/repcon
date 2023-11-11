@@ -92,12 +92,13 @@ pub async fn upload_files_to_openai(
 async fn main() -> io::Result<()> {
     dotenv().ok();
     let args = Args::parse();
+    let root_path = Path::new(&args.path_to_repo);
     let files = collect_target_files(
-        Path::new(&args.path_to_repo),
+        root_path,
         &args.ignore_patterns,
         args.repconignore_path.as_ref(),
     )?;
-    let total_size = get_dir_size(&files)?;
+    let total_size = get_dir_size(root_path, &files)?;
 
     // Convert max file size from megabytes to bytes
     let max_file_size_bytes = (args.max_file_size as u64) * 1024 * 1024;
