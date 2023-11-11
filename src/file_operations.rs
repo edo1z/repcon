@@ -82,6 +82,22 @@ pub fn check_size_limits(total_size: u64, total_allowed_size: u64) -> io::Result
     Ok(())
 }
 
+pub fn format_file_size(size: u64) -> String {
+    const KILOBYTE: u64 = 1024;
+    const MEGABYTE: u64 = KILOBYTE * 1024;
+    const GIGABYTE: u64 = MEGABYTE * 1024;
+
+    if size >= GIGABYTE {
+        format!("{:.2} GB", size as f64 / GIGABYTE as f64)
+    } else if size >= MEGABYTE {
+        format!("{:.2} MB", size as f64 / MEGABYTE as f64)
+    } else if size >= KILOBYTE {
+        format!("{:.2} KB", size as f64 / KILOBYTE as f64)
+    } else {
+        format!("{} B", size)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
