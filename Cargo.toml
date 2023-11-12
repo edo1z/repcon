@@ -7,7 +7,6 @@ keywords = ["openai", "retrieval", "compression", "cli"]
 license = "MIT"
 repository = "https://github.com/edo1z/repcon"
 authors = ["edo1z <endo.yuta@logicky.com>"]
-homepage = ""
 categories = ["command-line-utilities"]
 
 [lib]
