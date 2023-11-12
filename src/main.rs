@@ -137,6 +137,7 @@ async fn main() -> io::Result<()> {
     // Split the files into chunks
     let generated_files = split_files_into_chunks(
         &files,
+        Some(root_path),
         Path::new(&args.output_directory),
         max_file_size_bytes,
         &args.output_name,
