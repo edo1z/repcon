@@ -10,7 +10,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 use tokio;
 
-/// Repcon - A CLI tool to efficiently condense repository files, with custom ignore rules
+/// `repcon` is a Rust-based CLI tool designed to efficiently condense files within a repository.
+/// This tool aims to condense files into a maximum of 20 text documents, addressing the file upload limits on certain platforms.
+/// It was developed for creating uploadable files for the OpenAI's Assistants API Retrieval feature.
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
@@ -52,11 +55,16 @@ struct Args {
     )]
     output_name: String,
 
-    /// OpenAI API key for uploading the condensed files
+    /// The OpenAI API key for file upload.
+    /// If only `-u` is specified, the environment variable `OPENAI_API_KEY` is used.
     #[clap(short = 'u', long = "upload", value_parser)]
     upload: Option<Option<String>>,
 }
 
+/// Asynchronous function to upload files to the OpenAI API.
+/// Takes the upload option and a vector of file paths to upload each file.
+/// Uploads are skipped if no upload option is provided.
+/// Returns an error if the upload fails.
 pub async fn upload_files_to_openai(
     upload_option: &Option<Option<String>>,
     files: Vec<PathBuf>,
@@ -88,6 +96,10 @@ pub async fn upload_files_to_openai(
     Ok(())
 }
 
+/// Main entry point for the `repcon` tool.
+/// Parses command-line arguments and processes files within the specified repository.
+/// Handles file aggregation, size limit checks, output directory creation,
+/// and the upload process to the OpenAI API.
 #[tokio::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
