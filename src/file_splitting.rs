@@ -156,14 +156,11 @@ mod split_tests {
             split_files_into_chunks(&files, output_directory, max_output_file_size, output_name)?;
 
         assert!(!generated_output_files.is_empty());
-        println!("Generated files: {:?}", generated_output_files);
         assert_eq!(generated_output_files.len(), num_test_files);
         for generated_file_path in generated_output_files {
             let generated_file_content = fs::read_to_string(generated_file_path)?;
             assert!(generated_file_content.contains("// START OF CODE BLOCK"));
             assert!(generated_file_content.contains("// END OF CODE BLOCK"));
-            println!("Generated file content: {}", generated_file_content);
-            println!("Generated file size: {}", generated_file_content.len());
             assert!(generated_file_content.len() as u64 <= max_output_file_size);
         }
 
@@ -190,14 +187,11 @@ mod split_tests {
             split_files_into_chunks(&files, output_directory, max_output_file_size, output_name)?;
 
         assert!(!generated_output_files.is_empty());
-        println!("Generated files: {:?}", generated_output_files);
         assert_eq!(generated_output_files.len(), 1);
         for generated_file_path in generated_output_files {
             let generated_file_content = fs::read_to_string(generated_file_path)?;
             assert!(generated_file_content.contains("// START OF CODE BLOCK"));
             assert!(generated_file_content.contains("// END OF CODE BLOCK"));
-            println!("Generated file content: {}", generated_file_content);
-            println!("Generated file size: {}", generated_file_content.len());
             assert!(generated_file_content.len() as u64 <= max_output_file_size);
         }
 

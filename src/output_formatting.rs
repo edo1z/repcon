@@ -62,7 +62,6 @@ mod output_formattings_tests {
         assert_eq!(page_format.file_path, file_path);
         assert!(!page_format.header.is_empty());
         assert!(!page_format.footer.is_empty());
-        // その他、header_size、footer_size、page_nubmerのチェック
     }
 
     #[test]
@@ -73,7 +72,5 @@ mod output_formattings_tests {
         page_format.increment_page_number();
 
         assert_eq!(page_format.page_nubmer, initial_page_number + 1);
-        // ヘッダーとフッターが更新されているか確認
     }
-
 }
