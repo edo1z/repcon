@@ -3,7 +3,8 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
-// Function to create a new file and write the initial page header
+/// Creates a new output file in the specified directory with a given name and counter.
+/// Returns a tuple containing the created File and its PathBuf.
 fn create_new_output_file(
     output_directory: &Path,
     file_counter: u64,
@@ -14,6 +15,8 @@ fn create_new_output_file(
     Ok((file, file_path))
 }
 
+/// Checks if the size of the page header and footer exceeds the maximum allowed file size.
+/// Returns an error if the combined size is too large.
 fn check_max_output_file_size(
     page_format: &PageFormat,
     max_output_file_size: u64,
@@ -31,6 +34,8 @@ fn check_max_output_file_size(
     }
 }
 
+/// Creates a new file for output, updates the file counter and size, and adds the file to the list.
+/// This function is used when the current file reaches its maximum size and a new file is needed.
 fn next_output_file(
     output_directory: &Path,
     output_file_counter: &mut u64,
@@ -48,6 +53,9 @@ fn next_output_file(
     Ok(())
 }
 
+/// Splits the target files into chunks based on a maximum file size.
+/// Generates multiple files if necessary, each containing a portion of the target files.
+/// Returns a vector of paths to the generated files.
 pub fn split_files_into_chunks(
     target_files: &[PathBuf],
     output_directory: &Path,

@@ -3,6 +3,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+/// Converts an absolute file path to a relative path based on the root directory.
+/// If the file path is not relative to the root, returns the original path.
 fn to_relative_path(root: &Path, file_path: &Path) -> PathBuf {
     file_path
         .strip_prefix(root)
@@ -10,7 +12,9 @@ fn to_relative_path(root: &Path, file_path: &Path) -> PathBuf {
         .to_path_buf()
 }
 
-// Function to collect the list of target files
+/// Collects a list of target files within a directory, applying custom ignore patterns.
+/// Respects ignore rules from `.repconignore` file if provided.
+/// Returns a vector of relative paths to the files that are not ignored.
 pub fn collect_target_files(
     dir: &Path,
     ignore_patterns: &[String],
@@ -56,11 +60,13 @@ pub fn collect_target_files(
     Ok(files)
 }
 
+/// Converts ignore library errors to standard IO errors.
 fn convert_ignore_error(e: ignore::Error) -> io::Error {
     io::Error::new(io::ErrorKind::Other, e)
 }
 
-// Function to calculate the total size of the files from a list
+/// Calculates the total size of a list of files, given their relative paths and root directory.
+/// Returns the total size in bytes.
 pub fn get_dir_size(root_path: &Path, files: &[PathBuf]) -> io::Result<u64> {
     let total_size: u64 = files
         .iter()
@@ -71,6 +77,8 @@ pub fn get_dir_size(root_path: &Path, files: &[PathBuf]) -> io::Result<u64> {
     Ok(total_size)
 }
 
+/// Checks if the total size of files exceeds a specified limit.
+/// If the limit is exceeded, prints an error message and exits the process.
 pub fn check_size_limits(total_size: u64, total_allowed_size: u64) -> io::Result<()> {
     if total_size > total_allowed_size {
         eprintln!(
@@ -82,6 +90,8 @@ pub fn check_size_limits(total_size: u64, total_allowed_size: u64) -> io::Result
     Ok(())
 }
 
+/// Formats a file size in bytes into a human-readable string with appropriate units (B, KB, MB, GB).
+/// Returns the formatted string.
 pub fn format_file_size(size: u64) -> String {
     const KILOBYTE: u64 = 1024;
     const MEGABYTE: u64 = KILOBYTE * 1024;

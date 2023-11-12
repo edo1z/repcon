@@ -3,6 +3,18 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
+/// Asynchronously uploads a file to OpenAI using the provided API key.
+///
+/// This function reads the file asynchronously, creates a multipart form with the file and purpose,
+/// and sends it to the OpenAI API for uploading.
+///
+/// # Arguments
+/// * `api_key` - The API key for authentication with OpenAI.
+/// * `file_path` - The path of the file to be uploaded.
+/// * `purpose` - The purpose of the file upload, typically related to its intended use.
+///
+/// # Returns
+/// Result indicating success or failure.
 pub async fn upload_file_to_openai(
     api_key: &str,
     file_path: &str,
