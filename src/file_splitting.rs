@@ -56,8 +56,54 @@ fn next_output_file(
 /// Splits the target files into chunks based on a maximum file size.
 /// Generates multiple files if necessary, each containing a portion of the target files.
 /// Returns a vector of paths to the generated files.
+///
+/// # Examples
+///
+/// ```
+/// use repcon::split_files_into_chunks;
+/// use std::path::{Path, PathBuf};
+/// use std::fs::File;
+/// use std::io::Write;
+///
+/// // Suppose you have a directory with files that you want to split
+/// let output_directory = Path::new("./output");
+/// let target_files_root_path = Some(Path::new("./source"));
+/// let target_files = vec![
+///     PathBuf::from("./source/file1.txt"),
+///     PathBuf::from("./source/file2.txt"),
+/// ];
+/// let max_output_file_size = 1024; // 1KB max file size
+/// let output_name = "chunked_file";
+///
+/// // Write some data to the target files for demonstration purposes
+/// for file_path in &target_files {
+///     let mut file = File::create(file_path).unwrap();
+///     writeln!(file, "Sample content for testing").unwrap();
+/// }
+///
+/// let generated_files = split_files_into_chunks(
+///     &target_files,
+///     target_files_root_path,
+///     output_directory,
+///     max_output_file_size,
+///     output_name,
+/// ).unwrap();
+///
+/// for generated_file in generated_files {
+///     println!("Generated file: {:?}", generated_file);
+///     // Generated files would be something like:
+///     // "./output/chunked_file_1.txt"
+///     // "./output/chunked_file_2.txt", etc.
+/// }
+/// ```
+///
+/// # Errors
+///
+/// This function will return an `Err` if the file paths contain invalid UTF-8 characters
+/// or if the maximum file size is too small to contain even one chunk of the target files.
 pub fn split_files_into_chunks(
     target_files: &[PathBuf],
+    target_files_root_path: Option<&Path>,
     output_directory: &Path,
     max_output_file_size: u64,
     output_name: &str,
@@ -65,7 +111,7 @@ pub fn split_files_into_chunks(
     let mut generated_output_files = Vec::new();
     let mut output_file_counter: u64 = 1;
     let mut current_output_file_size: u64 = 0;
-    let mut current_target_file_name: &str;
+    let mut current_target_file_name: String;
     let mut page_format: PageFormat;
 
     // Create the first file
@@ -75,7 +121,7 @@ pub fn split_files_into_chunks(
 
     for target_file_path in target_files {
         current_target_file_name = match target_file_path.to_str() {
-            Some(name) => name,
+            Some(name) => name.to_string(),
             None => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -83,7 +129,7 @@ pub fn split_files_into_chunks(
                 ));
             }
         };
-        page_format = PageFormat::new(current_target_file_name);
+        page_format = PageFormat::new(current_target_file_name, target_files_root_path);
         check_max_output_file_size(&page_format, max_output_file_size)?;
 
         if current_output_file_size + page_format.header_size + page_format.footer_size
@@ -147,7 +193,7 @@ mod split_tests {
     #[test]
     fn test_split_files_into_small_chunks() -> io::Result<()> {
         let temp_dir = tempdir()?;
-        let max_output_file_size = 300;
+        let max_output_file_size = 200;
         let output_name = "output";
         let num_test_files = 5;
         let mut files = Vec::new();
@@ -160,8 +206,13 @@ mod split_tests {
         }
 
         let output_directory = temp_dir.path();
-        let generated_output_files =
-            split_files_into_chunks(&files, output_directory, max_output_file_size, output_name)?;
+        let generated_output_files = split_files_into_chunks(
+            &files,
+            Some(temp_dir.path()),
+            output_directory,
+            max_output_file_size,
+            output_name,
+        )?;
 
         assert!(!generated_output_files.is_empty());
         assert_eq!(generated_output_files.len(), num_test_files);
@@ -191,8 +242,13 @@ mod split_tests {
         }
 
         let output_directory = temp_dir.path();
-        let generated_output_files =
-            split_files_into_chunks(&files, output_directory, max_output_file_size, output_name)?;
+        let generated_output_files = split_files_into_chunks(
+            &files,
+            None,
+            output_directory,
+            max_output_file_size,
+            output_name,
+        )?;
 
         assert!(!generated_output_files.is_empty());
         assert_eq!(generated_output_files.len(), 1);
@@ -219,8 +275,13 @@ mod split_tests {
         files.push(file_path);
 
         let output_directory = temp_dir.path();
-        let result =
-            split_files_into_chunks(&files, output_directory, max_output_file_size, output_name);
+        let result = split_files_into_chunks(
+            &files,
+            None,
+            output_directory,
+            max_output_file_size,
+            output_name,
+        );
 
         assert!(result.is_err());
         Ok(())
@@ -239,8 +300,13 @@ mod split_tests {
         files.push(file_path);
 
         let output_directory = temp_dir.path();
-        let result =
-            split_files_into_chunks(&files, output_directory, max_output_file_size, output_name);
+        let result = split_files_into_chunks(
+            &files,
+            None,
+            output_directory,
+            max_output_file_size,
+            output_name,
+        );
 
         assert!(result.is_err());
         Ok(())

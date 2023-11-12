@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 /// Represents the format of a page in the output file.
 ///
 /// This struct holds the header and footer strings for a specific file,
@@ -18,9 +20,17 @@ impl PageFormat {
     ///
     /// # Arguments
     /// * `file_path` - The path of the file for which the page format is being created.
-    pub fn new(file_path: &str) -> Self {
-        let header = PageFormat::create_page_header(file_path, 1);
-        let footer = PageFormat::create_page_footer(file_path);
+    pub fn new(file_path: String, root: Option<&Path>) -> Self {
+        let file_path = if let Some(root) = root {
+            Self::to_relative_path(root, Path::new(&file_path))
+                .to_str()
+                .unwrap()
+                .to_string()
+        } else {
+            file_path
+        };
+        let header = PageFormat::create_page_header(&file_path, 1);
+        let footer = PageFormat::create_page_footer(&file_path);
         let header_size = header.as_bytes().len() as u64;
         let footer_size = footer.as_bytes().len() as u64;
         Self {
@@ -57,6 +67,15 @@ impl PageFormat {
         format!("// END OF CODE BLOCK: {}\n\n", file_path)
     }
 
+    /// Converts an absolute file path to a relative path based on the root directory.
+    /// If the file path is not relative to the root, returns the original path.
+    pub fn to_relative_path(root: &Path, file_path: &Path) -> PathBuf {
+        file_path
+            .strip_prefix(root)
+            .unwrap_or(file_path)
+            .to_path_buf()
+    }
+
     /// Returns the size of the current page header.
     pub fn get_page_header_size(&self) -> u64 {
         self.header.as_bytes().len() as u64
@@ -87,7 +106,7 @@ mod output_formattings_tests {
     #[test]
     fn test_page_format_new() {
         let file_path = "test_file.rs";
-        let page_format = PageFormat::new(file_path);
+        let page_format = PageFormat::new(file_path.to_string(), None);
 
         assert_eq!(page_format.file_path, file_path);
         assert!(!page_format.header.is_empty());
@@ -96,7 +115,7 @@ mod output_formattings_tests {
 
     #[test]
     fn test_page_format_increment_page_number() {
-        let mut page_format = PageFormat::new("test_file.rs");
+        let mut page_format = PageFormat::new("test_file.rs".to_string(), None);
         let initial_page_number = page_format.page_nubmer;
 
         page_format.increment_page_number();

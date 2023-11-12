@@ -3,15 +3,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Converts an absolute file path to a relative path based on the root directory.
-/// If the file path is not relative to the root, returns the original path.
-fn to_relative_path(root: &Path, file_path: &Path) -> PathBuf {
-    file_path
-        .strip_prefix(root)
-        .unwrap_or(file_path)
-        .to_path_buf()
-}
-
 /// Collects a list of target files within a directory, applying custom ignore patterns.
 /// Respects ignore rules from `.repconignore` file if provided.
 /// Returns a vector of relative paths to the files that are not ignored.
@@ -51,8 +42,7 @@ pub fn collect_target_files(
     for result in walker {
         if let Ok(entry) = result {
             if entry.file_type().map_or(false, |ft| ft.is_file()) {
-                let relative_path = to_relative_path(dir, entry.path());
-                files.push(relative_path);
+                files.push(entry.into_path());
             }
         }
     }
