@@ -66,20 +66,14 @@ fn next_output_file(
 /// use std::io::Write;
 ///
 /// // Suppose you have a directory with files that you want to split
-/// let output_directory = Path::new("./output");
-/// let target_files_root_path = Some(Path::new("./source"));
+/// let output_directory = Path::new("./tests/output");
+/// let target_files_root_path = Some(Path::new("./"));
 /// let target_files = vec![
-///     PathBuf::from("./source/file1.txt"),
-///     PathBuf::from("./source/file2.txt"),
+///     PathBuf::from("./src/main.rs"),
+///     PathBuf::from("./src/lib.rs"),
 /// ];
-/// let max_output_file_size = 1024; // 1KB max file size
+/// let max_output_file_size = 2048; // 2KB max file size
 /// let output_name = "chunked_file";
-///
-/// // Write some data to the target files for demonstration purposes
-/// for file_path in &target_files {
-///     let mut file = File::create(file_path).unwrap();
-///     writeln!(file, "Sample content for testing").unwrap();
-/// }
 ///
 /// let generated_files = split_files_into_chunks(
 ///     &target_files,
@@ -88,13 +82,6 @@ fn next_output_file(
 ///     max_output_file_size,
 ///     output_name,
 /// ).unwrap();
-///
-/// for generated_file in generated_files {
-///     println!("Generated file: {:?}", generated_file);
-///     // Generated files would be something like:
-///     // "./output/chunked_file_1.txt"
-///     // "./output/chunked_file_2.txt", etc.
-/// }
 /// ```
 ///
 /// # Errors
@@ -129,6 +116,15 @@ pub fn split_files_into_chunks(
                 ));
             }
         };
+
+        let file = match File::open(target_file_path) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("Failed to open file {:?}: {}", target_file_path, e);
+                continue;
+            }
+        };
+
         page_format = PageFormat::new(current_target_file_name, target_files_root_path);
         check_max_output_file_size(&page_format, max_output_file_size)?;
 
@@ -149,10 +145,13 @@ pub fn split_files_into_chunks(
         write!(output_file, "{}", page_format.header)?;
         current_output_file_size += page_format.header_size;
 
-        let file = File::open(target_file_path)?;
         let reader = BufReader::new(file);
-        for line in reader.lines() {
-            let line = line?;
+        for line_result in reader.lines() {
+            if line_result.is_err() {
+                eprintln!("Skipping non-text file: {:?}", target_file_path);
+                break;
+            }
+            let line = line_result.unwrap();
             let line_size = line.as_bytes().len() as u64 + 1; // +1 for the newline character
 
             if current_output_file_size + line_size + page_format.footer_size > max_output_file_size
@@ -300,15 +299,22 @@ mod split_tests {
         files.push(file_path);
 
         let output_directory = temp_dir.path();
-        let result = split_files_into_chunks(
+        let generated_output_files = split_files_into_chunks(
             &files,
             None,
             output_directory,
             max_output_file_size,
             output_name,
-        );
+        )?;
 
-        assert!(result.is_err());
+        assert_eq!(generated_output_files.len(), 1);
+        for generated_file_path in generated_output_files {
+            let generated_file_content = fs::read_to_string(generated_file_path)?;
+            assert!(generated_file_content.contains("// START OF CODE BLOCK"));
+            assert!(generated_file_content.contains("// END OF CODE BLOCK"));
+            assert!(generated_file_content.len() as u64 <= max_output_file_size);
+        }
+
         Ok(())
     }
 }
