@@ -3,7 +3,7 @@ use std::process::Command;
 #[test]
 fn test_output_directory_specified() {
     let output = Command::new("cargo")
-        .args(["run", ".", "-o", "output/test_output"])
+        .args(["run", ".", "-o", "tests/output"])
         .output()
         .expect("Failed to execute command");
     assert!(output.status.success());
@@ -12,7 +12,7 @@ fn test_output_directory_specified() {
 #[test]
 fn test_output_filename_specified() {
     let output = Command::new("cargo")
-        .args(["run", ".", "-n", "custom_output"])
+        .args(["run", ".", "-n", "custom_output", "-o", "tests/output"])
         .output()
         .expect("Failed to execute command");
     assert!(output.status.success());
@@ -21,7 +21,7 @@ fn test_output_filename_specified() {
 #[test]
 fn test_ignore_pattern_specified() {
     let output = Command::new("cargo")
-        .args(["run", ".", "-i", "temp*"])
+        .args(["run", ".", "-i", "temp*", "-o", "tests/output"])
         .output()
         .expect("Failed to execute command");
     assert!(output.status.success());
@@ -30,7 +30,7 @@ fn test_ignore_pattern_specified() {
 #[test]
 fn test_max_files_specified() {
     let output = Command::new("cargo")
-        .args(["run", ".", "-f", "5"])
+        .args(["run", ".", "-f", "5", "-o", "tests/output"])
         .output()
         .expect("Failed to execute command");
     assert!(output.status.success());
@@ -39,7 +39,7 @@ fn test_max_files_specified() {
 #[test]
 fn test_max_file_size_specified() {
     let output = Command::new("cargo")
-        .args(["run", ".", "-s", "100"])
+        .args(["run", ".", "-s", "100", "-o", "tests/output"])
         .output()
         .expect("Failed to execute command");
     assert!(output.status.success());
