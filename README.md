@@ -29,7 +29,7 @@ Make sure you have Rust and Cargo installed on your system. For more information
 After installing `repcon` with `cargo install repcon`, navigate to your repository's root directory and run the following command:
 
 ```bash
-repcon --path ./ --ignore node_modules --ignore "*.log"
+repcon . -i node_modules -i "*.log"
 ```
 
 This will process all files within the repository, excluding any matches found in `.gitignore`, the `node_modules` directory, and all `.log` files.
